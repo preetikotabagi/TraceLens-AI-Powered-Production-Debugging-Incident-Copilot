@@ -1,0 +1,76 @@
+# TraceLens local development stack: PostgreSQL -> backend -> frontend.
+#
+# Start order is enforced with health checks:
+#   db (pg_isready) -> backend (/api/v1/health) -> frontend (nginx)
+#
+# All values can be overridden through a `.env` file next to this file (see .env.example).
+# The defaults are for LOCAL DEVELOPMENT ONLY. Never reuse them anywhere public.
+
+name: tracelens
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tracelens}
+      POSTGRES_USER: ${POSTGRES_USER:-tracelens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tracelens_dev_password}
+    ports:
+      # Bound to localhost only, so the database is not exposed to your network.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - tracelens-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-tracelens}
+      DB_USERNAME: ${POSTGRES_USER:-tracelens}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-tracelens_dev_password}
+      # "dev" enables the demo error endpoints. Use "prod" to force them off and emit JSON logs.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      TRACELENS_CORS_ALLOWED_ORIGINS: ${TRACELENS_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      # Structured (JSON) console logs, ready for the log ingestion work in a later milestone.
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ${LOGGING_STRUCTURED_FORMAT_CONSOLE:-logstash}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      # 127.0.0.1 (not "localhost"): busybox wget may resolve localhost to IPv6 first.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Address of the backend as the BROWSER sees it (not the Docker-internal name).
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tracelens-db-data:

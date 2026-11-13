@@ -1,0 +1,89 @@
+/* Design tokens: the single source of truth for colour, spacing, type and shape.
+   Light theme by default; dark theme follows the operating system preference. */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces & text */
+  --color-bg: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f0f1f7;
+  --color-border: #dcdfea;
+  --color-text: #161a2b;
+  --color-text-muted: #51586f;
+
+  /* Brand */
+  --color-accent: #4338ca;
+  --color-accent-contrast: #ffffff;
+  --color-accent-soft: #e6e8fb;
+
+  /* Status */
+  --color-success: #0f7a4a;
+  --color-success-soft: #dcf5e8;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf0d2;
+  --color-danger: #b42318;
+  --color-danger-soft: #fde4e1;
+  --color-neutral-dot: #8b92a8;
+
+  /* Sidebar */
+  --color-sidebar-bg: #151a33;
+  --color-sidebar-text: #c9cee6;
+  --color-sidebar-text-strong: #ffffff;
+  --color-sidebar-active: #2a3163;
+
+  --focus-ring: 0 0 0 3px #ffffff, 0 0 0 5px #4338ca;
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-metric: 2rem;
+
+  /* Space & shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 8%);
+
+  --sidebar-width: 15rem;
+  --topbar-height: 3.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0e1120;
+    --color-surface: #171b30;
+    --color-surface-muted: #1e2340;
+    --color-border: #2c3256;
+    --color-text: #eef0fa;
+    --color-text-muted: #a4abc6;
+
+    --color-accent: #8b93ff;
+    --color-accent-contrast: #0e1120;
+    --color-accent-soft: #262c58;
+
+    --color-success: #5fd39b;
+    --color-success-soft: #123828;
+    --color-warning: #f3c566;
+    --color-warning-soft: #3b2e0f;
+    --color-danger: #ff8d82;
+    --color-danger-soft: #451a17;
+    --color-neutral-dot: #7a82a0;
+
+    --color-sidebar-bg: #0a0d1a;
+    --color-sidebar-active: #20264d;
+
+    --focus-ring: 0 0 0 3px #0e1120, 0 0 0 5px #8b93ff;
+    --shadow-card: none;
+  }
+}

@@ -1,0 +1,11 @@
+# Production profile (activate with SPRING_PROFILES_ACTIVE=prod).
+# Demo endpoints are forced off, and console logs are emitted as structured JSON.
+# (Full production hardening is planned for a later milestone.)
+tracelens:
+  demo:
+    enabled: false
+
+logging:
+  structured:
+    format:
+      console: logstash

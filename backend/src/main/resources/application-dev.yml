@@ -1,0 +1,9 @@
+# Local development profile (activate with SPRING_PROFILES_ACTIVE=dev).
+# Enables the demo error generator and human-readable console logs.
+tracelens:
+  demo:
+    enabled: true
+
+logging:
+  level:
+    com.tracelens: DEBUG

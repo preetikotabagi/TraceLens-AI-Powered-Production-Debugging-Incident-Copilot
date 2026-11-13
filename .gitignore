@@ -1,0 +1,25 @@
+# Secrets and local configuration (the .example files ARE committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Build output and dependencies
+node_modules/
+dist/
+target/
+coverage/
+*.class
+*.jar
+
+# Generated / local
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
