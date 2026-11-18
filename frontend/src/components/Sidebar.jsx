@@ -1,10 +1,22 @@
 import { NavLink } from 'react-router-dom';
-import { IncidentsIcon, LogoMark, LogsIcon, OverviewIcon, SettingsIcon } from './icons.jsx';
+import {
+  ErrorGroupsIcon,
+  IncidentsIcon,
+  InvestigationIcon,
+  LogoMark,
+  LogsIcon,
+  OverviewIcon,
+  ServicesIcon,
+  SettingsIcon,
+} from './icons.jsx';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Overview', Icon: OverviewIcon, end: true },
   { to: '/logs', label: 'Logs', Icon: LogsIcon },
   { to: '/incidents', label: 'Incidents', Icon: IncidentsIcon },
+  { to: '/error-groups', label: 'Error Groups', Icon: ErrorGroupsIcon },
+  { to: '/investigation', label: 'AI Investigation', Icon: InvestigationIcon },
+  { to: '/services', label: 'Service Health', Icon: ServicesIcon },
   { to: '/settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
@@ -32,7 +44,7 @@ export default function Sidebar({ id, open, onNavigate }) {
           ))}
         </ul>
       </nav>
-      <p className="sidebar__footer">Production debugging copilot</p>
+      <p className="sidebar__footer">AI Incident & Debugging Copilot</p>
     </aside>
   );
 }

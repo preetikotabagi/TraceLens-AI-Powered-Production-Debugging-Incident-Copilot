@@ -2,24 +2,24 @@ package com.tracelens.service;
 
 import com.tracelens.config.TraceLensProperties;
 import com.tracelens.dto.DemoSimulationResponse;
+import com.tracelens.dto.LogEntryDto;
+import com.tracelens.dto.LogLevel;
 import com.tracelens.dto.ScenarioType;
 import com.tracelens.exception.BadRequestException;
+import java.time.Instant;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.stereotype.Service;
 
 /**
  * DEVELOPMENT / DEMO ONLY.
- *
- * <p>Produces a few controlled errors so that later TraceLens features (log ingestion, incident
- * detection) have realistic failures to observe. This bean only exists when
- * {@code tracelens.demo.enabled=true}, and {@code DemoSafetyGuard} blocks startup if that is combined
- * with the {@code prod} profile.
- *
- * <p>Nothing here touches real data or damages the database: the "database failure" is a thrown
- * exception, and the "slow request" sleeps for a bounded time.
+ * Produces controlled errors and ingests corresponding logs so that the
+ * debugging
+ * platform has live failures to inspect.
  */
 @Service
 @ConditionalOnProperty(prefix = "tracelens.demo", name = "enabled", havingValue = "true")
@@ -30,20 +30,88 @@ public class DemoErrorService {
     private static final Logger log = LoggerFactory.getLogger(DemoErrorService.class);
 
     private final TraceLensProperties properties;
+    private final LogService logService;
 
     public DemoErrorService(TraceLensProperties properties) {
+        this(properties, null);
+    }
+
+    @Autowired
+    public DemoErrorService(TraceLensProperties properties, @Autowired(required = false) LogService logService) {
         this.properties = properties;
+        this.logService = logService;
     }
 
     public DemoSimulationResponse simulate(ScenarioType scenario, Integer delayMs) {
         log.info("Running demo scenario {}", scenario);
+        String mdcReqId = org.slf4j.MDC.get(com.tracelens.web.RequestIdFilter.MDC_KEY);
+        String reqId = (mdcReqId != null && !mdcReqId.isBlank()) ? mdcReqId
+                : "demo-" + UUID.randomUUID().toString().substring(0, 8);
+
         return switch (scenario) {
-            case DATABASE_FAILURE -> throw new DataAccessResourceFailureException(
-                    "Simulated (demo): connection to the database was lost");
-            case INVALID_REQUEST -> throw new BadRequestException(
-                    "DEMO_INVALID_REQUEST", "Simulated (demo): the request was deliberately invalid.");
-            case SLOW_REQUEST -> simulateSlowRequest(delayMs);
+            case DATABASE_FAILURE -> {
+                recordSimulatedLog(
+                        LogLevel.ERROR,
+                        "order-service",
+                        "DataAccessResourceFailureException: Simulated (demo): connection to the database was lost",
+                        "DataAccessResourceFailureException",
+                        "org.springframework.dao.DataAccessResourceFailureException: Simulated (demo)\n\tat com.tracelens.service.DemoErrorService.simulate(DemoErrorService.java:42)",
+                        reqId);
+                throw new DataAccessResourceFailureException(
+                        "Simulated (demo): connection to the database was lost");
+            }
+            case INVALID_REQUEST -> {
+                recordSimulatedLog(
+                        LogLevel.WARN,
+                        "api-gateway",
+                        "BadRequestException: Simulated (demo): the request was deliberately invalid.",
+                        "BadRequestException",
+                        null,
+                        reqId);
+                throw new BadRequestException(
+                        "DEMO_INVALID_REQUEST", "Simulated (demo): the request was deliberately invalid.");
+            }
+            case SLOW_REQUEST -> {
+                DemoSimulationResponse resp = simulateSlowRequest(delayMs);
+                recordSimulatedLog(
+                        LogLevel.WARN,
+                        "inventory-service",
+                        String.format("Slow request detected: elapsed %d ms", resp.elapsedMs()),
+                        "SlowRequestWarning",
+                        null,
+                        reqId);
+                yield resp;
+            }
         };
+    }
+
+    private void recordSimulatedLog(LogLevel level, String service, String message,
+            String errorType, String stack, String reqId) {
+        if (logService == null) {
+            return;
+        }
+        try {
+            logService.ingest(new LogEntryDto(
+                    null,
+                    Instant.now(),
+                    level,
+                    service,
+                    "development",
+                    message,
+                    "com.tracelens.demo.DemoSimulator",
+                    Thread.currentThread().getName(),
+                    reqId,
+                    "demo-user",
+                    "trace-" + reqId,
+                    "span-1",
+                    errorType,
+                    stack,
+                    null,
+                    null,
+                    "{\"demo\":true}"));
+        } catch (Exception ex) {
+            log.debug("Could not record demo log to database (expected if db is down): {}", ex.getMessage());
+        }
     }
 
     private DemoSimulationResponse simulateSlowRequest(Integer requestedDelayMs) {

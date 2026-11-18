@@ -53,11 +53,15 @@ export async function request(path, { method = 'GET', body, timeoutMs = REQUEST_
     });
 
     let data = null;
-    try {
-      data = await response.json();
-    } catch {
-      data = null; // empty or non-JSON body
+    if (!response._bodyPromise) {
+      try {
+        response._bodyPromise = response.json().catch(() => null);
+      } catch {
+        response._bodyPromise = Promise.resolve(null);
+      }
     }
+    data = await response._bodyPromise;
+
     return {
       ok: response.ok,
       status: response.status,
@@ -95,7 +99,6 @@ export async function getHealth({ signal } = {}) {
 
 /**
  * Triggers one of the backend's development-only demo scenarios.
- * Returns the raw outcome (including intentional failures) so the UI can display it.
  */
 export async function runDemoScenario(scenario, { delayMs } = {}) {
   const startedAt = performance.now();
@@ -105,4 +108,180 @@ export async function runDemoScenario(scenario, { delayMs } = {}) {
     timeoutMs: 20000,
   });
   return { ...res, durationMs: Math.round(performance.now() - startedAt) };
+}
+
+/**
+ * Fetches overview metrics for the main dashboard.
+ */
+export async function getOverviewMetrics({ signal } = {}) {
+  const res = await request('/api/v1/metrics/overview', { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to fetch overview metrics', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Searches and filters logs.
+ */
+export async function searchLogs({ service, level, query, fingerprint, incidentId, startTime, endTime, limit = 50, offset = 0 } = {}, { signal } = {}) {
+  const params = new URLSearchParams();
+  if (service) params.set('service', service);
+  if (level && level !== 'ALL') params.set('level', level);
+  if (query) params.set('query', query);
+  if (fingerprint) params.set('fingerprint', fingerprint);
+  if (incidentId) params.set('incidentId', incidentId);
+  if (startTime) params.set('startTime', startTime);
+  if (endTime) params.set('endTime', endTime);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+
+  const res = await request(`/api/v1/logs?${params.toString()}`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to search logs', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Fetches a single log record by ID.
+ */
+export async function getLogById(id, { signal } = {}) {
+  const res = await request(`/api/v1/logs/${id}`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Log not found', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Ingests a single log record.
+ */
+export async function ingestLog(logEntry) {
+  const res = await request('/api/v1/logs', { method: 'POST', body: logEntry });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to ingest log', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Lists incidents with filtering.
+ */
+export async function listIncidents({ service, severity, status, limit = 50, offset = 0 } = {}, { signal } = {}) {
+  const params = new URLSearchParams();
+  if (service) params.set('service', service);
+  if (severity && severity !== 'ALL') params.set('severity', severity);
+  if (status && status !== 'ALL') params.set('status', status);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+
+  const res = await request(`/api/v1/incidents?${params.toString()}`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to list incidents', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Gets incident detail by ID with associated error group and logs.
+ */
+export async function getIncidentDetail(id, { signal } = {}) {
+  const res = await request(`/api/v1/incidents/${id}`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to fetch incident details', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Updates an incident's status.
+ */
+export async function updateIncidentStatus(id, newStatus) {
+  const res = await request(`/api/v1/incidents/${id}/status`, {
+    method: 'PATCH',
+    body: { status: newStatus },
+  });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to update incident status', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Triggers an LLM investigation on an incident.
+ */
+export async function runInvestigation(incidentId, { notes, model } = {}) {
+  const res = await request(`/api/v1/incidents/${incidentId}/investigate`, {
+    method: 'POST',
+    body: { notes, model },
+    timeoutMs: 35000,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'AI investigation failed', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Gets past investigations for an incident.
+ */
+export async function getInvestigations(incidentId, { signal } = {}) {
+  const res = await request(`/api/v1/incidents/${incidentId}/investigations`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to fetch investigations', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Lists error groups.
+ */
+export async function listErrorGroups({ service, limit = 50, offset = 0 } = {}, { signal } = {}) {
+  const params = new URLSearchParams();
+  if (service) params.set('service', service);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+
+  const res = await request(`/api/v1/error-groups?${params.toString()}`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to fetch error groups', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Gets error group details by fingerprint.
+ */
+export async function getErrorGroupDetail(fingerprint, { signal } = {}) {
+  const res = await request(`/api/v1/error-groups/${fingerprint}`, { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to fetch error group detail', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Gets service health statuses.
+ */
+export async function getServiceHealth({ signal } = {}) {
+  const res = await request('/api/v1/services/health', { signal });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to fetch service health', { status: res.status, data: res.data });
+  }
+  return res.data;
+}
+
+/**
+ * Generates 1,000+ realistic logs across multiple services with realistic incident patterns.
+ */
+export async function seedRealisticData() {
+  const res = await request('/api/v1/seed', {
+    method: 'POST',
+    timeoutMs: 60000,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.data?.message || 'Failed to seed data', { status: res.status, data: res.data });
+  }
+  return res.data;
 }

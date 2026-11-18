@@ -1,5 +1,6 @@
 package com.tracelens.config;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -9,6 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Allowed origins come from configuration, never a wildcard.
  */
 @Configuration
+@EnableConfigurationProperties(TraceLensProperties.class)
 public class CorsConfig implements WebMvcConfigurer {
 
     private final TraceLensProperties properties;
@@ -21,7 +23,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(properties.cors().allowedOrigins().toArray(String[]::new))
-                .allowedMethods("GET", "POST", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("Content-Type", "X-Request-Id")
                 .exposedHeaders("X-Request-Id")
                 .maxAge(3600);

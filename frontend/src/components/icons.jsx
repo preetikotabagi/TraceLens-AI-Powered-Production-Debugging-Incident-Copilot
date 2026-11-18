@@ -41,6 +41,30 @@ export const IncidentsIcon = () => (
   </Icon>
 );
 
+export const ErrorGroupsIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M6 6a9 9 0 0 1 12 0" />
+    <path d="M3 12a9 9 0 0 0 18 0" />
+  </Icon>
+);
+
+export const InvestigationIcon = () => (
+  <Icon>
+    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    <circle cx="12" cy="12" r="4" />
+  </Icon>
+);
+
+export const ServicesIcon = () => (
+  <Icon>
+    <rect x="2" y="2" width="20" height="8" rx="2" />
+    <rect x="2" y="14" width="20" height="8" rx="2" />
+    <line x1="6" y1="6" x2="6.01" y2="6" />
+    <line x1="6" y1="18" x2="6.01" y2="18" />
+  </Icon>
+);
+
 export const SettingsIcon = () => (
   <Icon>
     <circle cx="12" cy="12" r="3" />

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
-import { NetworkError, runDemoScenario } from '../api/client.js';
+import { NetworkError, runDemoScenario, seedRealisticData } from '../api/client.js';
 import { API_BASE_URL } from '../config.js';
 import { useBackendStatusContext } from '../context/backendStatusContext.js';
 
@@ -8,17 +8,17 @@ const SCENARIOS = [
   {
     id: 'DATABASE_FAILURE',
     label: 'Simulate database failure',
-    description: 'The backend raises a database error and answers 503.',
+    description: 'The backend records an error log and raises a database failure (503).',
   },
   {
     id: 'INVALID_REQUEST',
     label: 'Simulate invalid request',
-    description: 'The backend rejects a deliberately bad request with 400.',
+    description: 'The backend rejects a deliberately bad request with 400 and logs a warning.',
   },
   {
     id: 'SLOW_REQUEST',
     label: 'Simulate slow request',
-    description: 'The backend waits about 3 seconds before answering 200.',
+    description: 'The backend waits about 3 seconds before answering 200 and logs a latency warning.',
     options: { delayMs: 3000 },
   },
 ];
@@ -60,35 +60,43 @@ function ConnectionPanel() {
   );
 }
 
-function DemoPanel() {
-  const [running, setRunning] = useState(null);
-  const [outcome, setOutcome] = useState(null);
+function SeedDataPanel({ disabled, seeding, onSeed, result }) {
+  return (
+    <section className="card panel" aria-labelledby="seed-heading">
+      <h2 id="seed-heading" className="panel__title">
+        Realistic Dataset Generator (1,000+ Logs)
+      </h2>
+      <p className="hint">
+        Seeds at least 1,000 realistic logs across 5 services with real failure cascades:
+        Stripe 504 Gateway Timeout, PostgreSQL Deadlock during checkout, and JWT Token Expiration Storm.
+      </p>
+      <div style={{ marginTop: '0.75rem' }}>
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={onSeed}
+          disabled={disabled}
+        >
+          {seeding ? 'Seeding 1,000+ Records…' : '⚡ Generate 1,000+ Production Logs'}
+        </button>
+      </div>
+      {result && (
+        <div style={{ marginTop: '0.75rem' }} className={`banner banner--${result.success ? 'success' : 'error'}`}>
+          <p>{result.message}</p>
+        </div>
+      )}
+    </section>
+  );
+}
 
-  async function run(scenario) {
-    setRunning(scenario.id);
-    setOutcome(null);
-    try {
-      const result = await runDemoScenario(scenario.id, scenario.options);
-      setOutcome({ scenario, result });
-    } catch (error) {
-      setOutcome({
-        scenario,
-        failure:
-          error instanceof NetworkError ? error.message : 'Something went wrong while calling the backend.',
-      });
-    } finally {
-      setRunning(null);
-    }
-  }
-
+function DemoPanel({ disabled, running, onRun, outcome }) {
   return (
     <section className="card panel" aria-labelledby="demo-heading">
       <h2 id="demo-heading" className="panel__title">
         Demo scenarios <span className="badge">Development only</span>
       </h2>
       <p className="hint">
-        These buttons ask the backend to produce controlled errors so later features have something to
-        observe. They only work when the backend runs with demo mode enabled.
+        These buttons ask the backend to produce controlled errors and ingest live logs into the debugging platform.
       </p>
       <ul className="scenario-list">
         {SCENARIOS.map((scenario) => (
@@ -100,10 +108,10 @@ function DemoPanel() {
             <button
               type="button"
               className="button button--secondary"
-              disabled={running !== null}
+              disabled={disabled}
               aria-busy={running === scenario.id}
               aria-label={`${running === scenario.id ? 'Running' : 'Run'}: ${scenario.label}`}
-              onClick={() => run(scenario)}
+              onClick={() => onRun(scenario)}
             >
               {running === scenario.id ? 'Running…' : 'Run'}
             </button>
@@ -150,12 +158,50 @@ function DemoOutcome({ outcome }) {
 }
 
 export default function Settings() {
+  const [running, setRunning] = useState(null);
+  const [outcome, setOutcome] = useState(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState(null);
+
+  const isBusy = running !== null || seeding;
+
+  async function run(scenario) {
+    setRunning(scenario.id);
+    setOutcome(null);
+    try {
+      const result = await runDemoScenario(scenario.id, scenario.options);
+      setOutcome({ scenario, result });
+    } catch (error) {
+      setOutcome({
+        scenario,
+        failure:
+          error instanceof NetworkError ? error.message : 'Something went wrong while calling the backend.',
+      });
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  const handleSeed = async () => {
+    try {
+      setSeeding(true);
+      setSeedResult(null);
+      const res = await seedRealisticData();
+      setSeedResult({ success: true, message: res.message });
+    } catch (err) {
+      setSeedResult({ success: false, message: err.message || 'Seeding failed' });
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <>
-      <PageHeader title="Settings" description="Connection details and development tools." />
+      <PageHeader title="Settings" description="Connection details, dataset seeding, and demo test scenarios." />
       <div className="stack">
         <ConnectionPanel />
-        <DemoPanel />
+        <SeedDataPanel disabled={isBusy} seeding={seeding} onSeed={handleSeed} result={seedResult} />
+        <DemoPanel disabled={isBusy} running={running} onRun={run} outcome={outcome} />
       </div>
     </>
   );

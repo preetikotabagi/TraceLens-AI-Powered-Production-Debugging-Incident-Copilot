@@ -8,4 +8,4 @@ export const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 export const STATUS_POLL_INTERVAL_MS = 15000;
 
 /** Default timeout for API calls. */
-export const REQUEST_TIMEOUT_MS = 8000;
+export const REQUEST_TIMEOUT_MS = 75000;
